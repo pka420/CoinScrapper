@@ -15,22 +15,30 @@ import datetime
 from dotenv import load_dotenv
 import argparse
 import re
+import logging
+from models import Tasks
+from serializers import TaskUpdateSerializer
+
+
+formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s',
+                              datefmt='%Y-%m-%d %H:%M:%S')
+filename = os.getenv("LOGS_PATH") + "/Run_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".log"
+logging.basicConfig(filename=filename ,level=logging.INFO)
+logger = logging.getLogger('coin_scrapper')
+logger.setLevel(logging.INFO)
+
 
 def remove_non_ascii_regex(text):
     return re.sub(r'[^\x00-\x7F]+|\n|\r', '', text)
 
-
 load_dotenv("../.env")
-
-print(os.getenv("CHROMEDRIVER_PATH"))
-print(os.getenv("CHROME_BINARY_PATH"))
-
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-n", "--hostname", help = "hostname", required = True)
 parser.add_argument("-p", "--port", help = "port", required = True)
 parser.add_argument("-c", "--coin", help = "coin_name", required = True)
+parser.add_argument("-i", "--task_id", help = "task_id", required = True)
 parser.add_argument("-t", "--test", help = "test", required = False, action='store_true', default=False)
 
 # Read arguments from command line
@@ -54,7 +62,6 @@ chrome_options.add_argument("--headless")
 chrome_options.add_argument("--crash-dumps-dir=/tmp")
 chrome_options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
 
-print("Proxy: %s:%s" % (args.hostname, args.port))
 #chrome_options.add_argument('--proxy-server=http://%s:%s' % (args.hostname, args.port))
 
 url = "https://coinmarketcap.com/currencies/" + args.coin.strip() + "/"
@@ -78,7 +85,8 @@ def get_ip(driver):
         element = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/pre')))
         return element.text
     except Exception as e:
-        print("Unable to get ip address")
+        logger.error(e)
+        logger.error("Unable to get ip address")
         return ""
 
 def find_element(driver, xpath):
@@ -88,7 +96,8 @@ def find_element(driver, xpath):
             return element.text.strip()
         return ""
     except Exception as e:
-        print("Unable to get %s" % field_name)
+        logger.error(e)
+        logger.error("Unable to get %s" % field_name)
 
 
 def find_price_change(driver, xpath):
@@ -102,7 +111,10 @@ def find_price_change(driver, xpath):
                 return "+" + price_change.text.strip().split('%')[0]
         return None
     except Exception as e:
-        print("Unable to get price_change")
+        logger.error(e)
+        logger.error("Unable to get price change")
+        return None
+
 
 def extract_contracts(driver, data):
     try:
@@ -115,8 +127,8 @@ def extract_contracts(driver, data):
                 "address": contract_address
             })
     except Exception as e:
-        print(e)
-        print("Unable to get contracts")
+        logger.error(e)
+        logger.error("Unable to get contracts")
         return None
 
 social_sites = ['twitter', 'telegram', 'facebook', 'reddit', 'github', 'linkedin', 'medium', 'discord', 'youtube', 'instagram']
@@ -138,12 +150,11 @@ def extract_social_and_official_links(driver, data):
                     "url": href
                 })
     except Exception as e:
-        print(e)
-        print("Unable to get socials and official_links")
+        logger.error(e)
+        logger.error("Unable to get socials and/or official_links")
 
 
 if args.test:
-    print("Test mode")
     get_ip(driver)
     driver.quit()
     exit(0)
@@ -169,18 +180,26 @@ else:
             "diluted_market_cap": find_element(driver, '//*[@id="section-coin-stats"]/div/dl/div[7]/div/dd').split('$')[1],
             "contracts": [],
             "official_links": [],
-            "socials": []
+            "socials": [],
+            "is_running": False,
+            "is_completed": False
         }
 
         extract_contracts(driver, data)
         extract_social_and_official_links(driver, data)
 
-        print(data)
+        logger.info("Successfully scraped data for %s" % args.coin)
 
-        # save data to db using serializer
-        # data["is_running"] = False
-        # data["is_completed"] = True
-        #
+        task_instance = Tasks.objects.get(id=args.task_id)
+        task_serializer = TaskUpdateSerializer(task_instance, data=data)
+        if task_serializer.is_valid():
+            task_serializer.save()
+
+        #make is_completed = True
+        task_instance.is_completed = True
+        task_instance.save()
+
+        logger.info("Successfully updated task %s" % args.task_id)
 
         driver.quit()
         exit(0)

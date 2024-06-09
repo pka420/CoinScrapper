@@ -7,8 +7,6 @@ import json
 import os
 import uuid
 
-from account.models import User
-from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models.signals import post_save
@@ -16,25 +14,28 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 
-class Task(models.Model):
+class Tasks(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    coin_name = models.CharField(max_length=200)
-    price = models.CharField(max_lenght=20)
-    price_change = models.CharField(max_lenght=20)
-    market_cap = models.CharField(max_lenght=20)
-    market_cap_rank = models.CharField(max_lenght=20)
-    volume = models.CharField(max_lenght=20)
-    volume_rank = models.CharField(max_length=20)
-    volume_change = models.CharField(max_lenght=20)
-    circulating_supply = models.CharField(max_lenght=20)
-    total_supply = models.CharField(max_lenght=20)
-    diluted_market_cap = models.CharField(max_lenght=20)
-    contracts = ArrayField(models.CharField(max_length=200), default=list)
-    official_links = ArrayField(models.CharField(max_length=200), default=list)
-    social = ArrayField(models.CharField(max_length=200), default=list)
+    job = models.ForeignKey('Jobs', on_delete=models.CASCADE, related_name='task_list', null=False)
+    coin = models.CharField(max_length=20)
+    ip_address = models.CharField(max_length=20, blank=True, null=True)
+    price = models.CharField(max_length=20, blank=True, null=True)
+    price_change = models.CharField(max_length=20, blank=True, null=True)
+    market_cap = models.CharField(max_length=20, blank=True, null=True)
+    market_cap_rank = models.CharField(max_length=20, blank=True, null=True)
+    volume = models.CharField(max_length=20, blank=True, null=True)
+    volume_rank = models.CharField(max_length=20, blank=True, null=True)
+    volume_change = models.CharField(max_length=20, blank=True, null=True)
+    circulating_supply = models.CharField(max_length=20, blank=True, null=True)
+    total_supply = models.CharField(max_length=20, blank=True, null=True)
+    diluted_market_cap = models.CharField(max_length=20, blank=True, null=True)
+    contracts = ArrayField(models.CharField(max_length=300), default=list, blank=True, null=True)
+    official_links = ArrayField(models.CharField(max_length=300), default=list, blank=True, null=True)
+    social = ArrayField(models.CharField(max_length=300), default=list, blank=True, null=True)
     is_running = models.BooleanField(default=True)
     is_completed = models.BooleanField(default=False)
-    selenium_logs = models.CharField(max_length=200)
+    selenium_logs = models.CharField(max_length=20)
+    timestamp = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.coin_name
@@ -43,7 +44,7 @@ class Task(models.Model):
         return json.dumps({
                            'coin': self.coin_name,
                            'output': json.dumps({
-                               'price': self.price
+                               'price': self.price,
                                'price_change': self.price_change,
                                'market_cap': self.market_cap,
                                'market_cap_rank': self.market_cap_rank,
@@ -65,16 +66,13 @@ class Task(models.Model):
         })
 
 
-class Job(models.Model):
+class Jobs(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    task_list = models.ManyToManyField(Task)
-    coin_list = ArrayField(models.CharField(max_length=20), default=list, size=8)
-    ip_address = models.CharField(max_length=200)
+    coins = ArrayField(models.CharField(max_length=20), default=list, size=8)
     is_running = models.BooleanField(default=True)
     is_completed = models.BooleanField(default=False)
-
-    def __str__(self):
-        return self.title
+    submitted_on = models.DateTimeField(auto_now=False, default=timezone.now, null=True, blank=True)
+    finished_on = models.DateTimeField(auto_now=False, default=timezone.now, null=True, blank=True)
 
     def output_view(self):
         return json.dumps({

@@ -1,20 +1,33 @@
+from __future__ import absolute_import, unicode_literals
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from backend.models import Jobs, Task
-from backend.serializers import JobCreateSerializer, JobviewSerializer, JobStatusSerializer, TaskSerializer
+from backend.models import Jobs, Tasks
+from backend.serializers import JobCreateSerializer, JobViewSerializer, JobStatusSerializer, TaskSerializer
+from rest_framework_tracking.mixins import LoggingMixin
+import os
+from celery import Celery
+import json
+import datetime
+import subprocess
 
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_celery.settings")
+app = Celery('coin_scrapper')
+app.config_from_object("django.conf:settings", namespace="CELERY")
+app.autodiscover_tasks()
 
-def create_tasks(data):
-    job_id = data['id']
-    coin_list = data['coin_list']
-    task_list = []
-    for coin in coin_list:
-        task = Task.objects.create(coin_name=coin, job_id=job_id)
-        task_list.append(task.id)
-    job = Jobs.objects.get(id=job_id)
-    job.task_list = task_list
-    job.save()
+hostname = os.getenv("HOSTNAME")
+port = os.getenv("PORT")
+
+@app.task(bind=True)
+def start_task(self, task_id):
+    cmd = f"python main.py -n {hostname} -p {port} -i {task_id}"
+    subprocess.run(cmd, shell=True)
+
+def create_tasks(data, instance):
+    for coin in instance.coins:
+        task = Tasks.objects.create(coin=coin, job=instance)
+        start_task.apply_async(args=[task.id])
 
 
 class JobCreateAPIView(LoggingMixin, CreateAPIView):
@@ -23,12 +36,15 @@ class JobCreateAPIView(LoggingMixin, CreateAPIView):
     serializer_class = JobCreateSerializer
 
     def post(self, request, *args, **kwargs):
-        data = request.data
-        print(data)
+        data = json.loads(request.body.decode('utf-8'))
+        for each in data['coins']:
+            print(each)
+        data['submitted_on'] = datetime.datetime.now()
+
         serializer = JobCreateSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
-                create_tasks(serializer.data)
+            instance = serializer.save()
+            create_tasks(serializer.data, instance)
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -40,9 +56,18 @@ class JobViewAPIView(LoggingMixin, RetrieveAPIView):
     serializer_class = JobViewSerializer
     lookup_field = 'id'
 
-    get_object(self):
-        id = self.kwargs.get('id')
-        return Jobs.objects.get(id=id).output_view()
+    def get(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.is_completed:
+            print('Job is completed')
+            serializer = JobViewSerializer(instance)
+            data = serializer.data
 
+            tasks = Tasks.objects.filter(job=instance)
+            task_serializer = TaskSerializer(tasks, many=True)
 
+            return Response(data, status=status.HTTP_200_OK)
+        else:
+            print('Job is not completed')
+            return Response({'message': 'Job is not completed'}, status=status.HTTP_200_OK)
 
