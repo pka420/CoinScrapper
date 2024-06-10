@@ -52,12 +52,15 @@ class JobViewAPIView(LoggingMixin, RetrieveAPIView):
         instance = self.get_object()
         tasks = Tasks.objects.filter(job=instance)
         if instance.is_completed:
-            serializer = JobViewSerializer(instance)
-            data = serializer.data
-            tasks = Tasks.objects.filter(job=instance)
-            task_serializer = TaskSerializer(tasks, many=True)
-            data['tasks'] = task_serializer.data
-            return Response(data, status=status.HTTP_200_OK)
+            if instance.success:
+                serializer = JobViewSerializer(instance)
+                data = serializer.data
+                tasks = Tasks.objects.filter(job=instance)
+                task_serializer = TaskSerializer(tasks, many=True)
+                data['tasks'] = task_serializer.data
+                return Response(data, status=status.HTTP_200_OK)
+            else:
+                return Response({'message': 'Job failed to complete.'}, status=status.HTTP_200_OK)
         else:
-            return Response({'message': 'Job is not completed'}, status=status.HTTP_200_OK)
+            return Response({'message': 'Job is not completed yet.'}, status=status.HTTP_200_OK)
 
