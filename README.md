@@ -1,5 +1,26 @@
 # CoinScrapper
 
+## Demo
+
+  https://github.com/pka420/CoinScrapper/assets/30459586/b6f798c5-0871-4dcd-85bb-739707f8c705
+
+
+1. Create a job.
+![image](https://github.com/pka420/CoinScrapper/assets/30459586/543dba60-e55a-474c-bc5f-5ffdff287e54)
+
+2. Check Status
+
+Not Completed:
+![image](https://github.com/pka420/CoinScrapper/assets/30459586/269787cc-ea48-46da-882e-20f135fc73b7)
+
+Completed: 
+![image](https://github.com/pka420/CoinScrapper/assets/30459586/9beb407c-8d96-4d1c-bbc9-5a4ed5bc1356)
+
+Failed:
+![image](https://github.com/pka420/CoinScrapper/assets/30459586/1fb39eb5-c1af-4673-830f-0c72c604e6f6)
+
+
+
 ## How to start for development:
 
 1. Make python environment
@@ -50,3 +71,4 @@ python manage.py makemigrations
 python manage.py migrate
 python manage.py runserver localhost:8000
 ```
+
