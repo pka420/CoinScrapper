@@ -1,6 +1,8 @@
 from celery import Celery
 import os
-import datetime
+from datetime import datetime
+import pytz
+
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'scrapper.settings')
 
@@ -22,9 +24,10 @@ def finalize_jobs(results, task_list):
     from .models import Tasks
 
     job = Jobs.objects.get(task_list=task_list[0])
+    timezone = pytz.timezone('Asia/Kolkata')
 
     job.is_completed = True
-    job.finished_on = datetime.datetime.now()
+    job.finished_on = datetime.now(timezone)
     job.save()
 
     if all(task.is_completed for task in Tasks.objects.filter(id__in=task_list)):

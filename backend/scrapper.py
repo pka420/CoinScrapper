@@ -26,14 +26,12 @@ class Scrapper():
                                   datefmt='%Y-%m-%d %H:%M:%S')
 
     log_filename = os.path.join(os.getenv("LOGS_PATH", "."), f"Run_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log")
-    print("log_filename:", log_filename)
     file_handler = logging.FileHandler(log_filename)
     file_handler.setFormatter(formatter)
 
     logger.addHandler(file_handler)
 
     def __init__(self, task_id, hostname, port):
-        print(self.logger.handlers[0].baseFilename)
         from .models import Tasks
         load_dotenv("../.env")
         self.task_id = task_id
@@ -77,7 +75,7 @@ class Scrapper():
         chrome_options.add_argument("--crash-dumps-dir=/tmp")
         chrome_options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
 
-        #chrome_options.add_argument('--proxy-server=http://%s:%s' % (self.hostname, self.port))
+        # chrome_options.add_argument('--proxy-server=http://%s:%s' % (self.hostname, self.port))
 
         service = Service(self.chromedriver_path)
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -133,7 +131,6 @@ class Scrapper():
             for element in link_elements:
                 href = element.get_attribute('href')
                 name = self.remove_non_ascii_regex(element.text.strip().lower())
-                print("name:", name)
                 if name not in social_sites:
                     data['official_links'].append({
                         "name": "website",
