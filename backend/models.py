@@ -12,6 +12,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.db.models import JSONField
 
 
 class Tasks(models.Model):
@@ -29,9 +30,9 @@ class Tasks(models.Model):
     circulating_supply = models.CharField(max_length=20, blank=True, null=True)
     total_supply = models.CharField(max_length=20, blank=True, null=True)
     diluted_market_cap = models.CharField(max_length=20, blank=True, null=True)
-    contracts = ArrayField(models.CharField(max_length=300), default=list, blank=True, null=True)
-    official_links = ArrayField(models.CharField(max_length=300), default=list, blank=True, null=True)
-    social = ArrayField(models.CharField(max_length=300), default=list, blank=True, null=True)
+    contracts = JSONField(default=list, blank=True, null=True)
+    official_links = JSONField(default=list, blank=True, null=True)
+    social = JSONField(default=list, blank=True, null=True)
     is_running = models.BooleanField(default=True)
     is_completed = models.BooleanField(default=False)
     selenium_logs = models.CharField(max_length=20)
@@ -69,8 +70,8 @@ class Tasks(models.Model):
 class Jobs(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     coins = ArrayField(models.CharField(max_length=20), default=list, size=8)
-    is_running = models.BooleanField(default=True)
     is_completed = models.BooleanField(default=False)
+    success = models.BooleanField(default=False)
     submitted_on = models.DateTimeField(auto_now=False, default=timezone.now, null=True, blank=True)
     finished_on = models.DateTimeField(auto_now=False, default=timezone.now, null=True, blank=True)
 
